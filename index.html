@@ -68,8 +68,8 @@ ul{list-style:none;margin:8px 0 0;padding:0}li{padding:7px 0;border-bottom:1px s
  <section class="stats">
   <div class="box"><b>100</b><small>Total NetCard</small></div>
   <div class="box"><b id="s1">0/100</b><small>Tiket Masuk terpakai</small></div>
-  <div class="box"><b id="s2">0/100</b><small>Aktivitas Game terpakai</small></div>
-  <div class="box"><b id="s3">0/100</b><small>Merchandise terpakai</small></div>
+  <div class="box"><b id="s2">0/100</b><small>Aktivitas Game selesai (3 game)</small></div>
+  <div class="box"><b id="s3">0/100</b><small>Merchandise completed</small></div>
   <div class="box"><b id="s4">0</b><small>Diblokir</small></div>
  </section>
  <section class="box">
@@ -100,9 +100,9 @@ function qr(t){var q=qrcode(0,"M");q.addData(t);q.make();var n=q.getModuleCount(
 function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 var AL="ABCDEFGHJKMNPQRSTUVWXYZ23456789",r=rng(20261104),seen={},cards=[];
 while(cards.length<100){var s="";for(var j=0;j<6;j++)s+=AL[Math.floor(r()*AL.length)];if(seen[s])continue;seen[s]=1;var n=cards.length+1;cards.push({n:n,code:"TLX-"+String(n).padStart(3,"0")+"-"+s})}
-var KIND={masuk:"Tiket Masuk",game:"Aktivitas Game",merch:"Merchandise"},KS=["masuk","game","merch"],
-CONG={masuk:["SELAMAT DATANG! 🎉","Tiket Masuk berhasil digunakan","Selamat menikmati Playlist Rewind Bandung"],game:["SELAMAT BERMAIN! 🎮","Aktivitas Game berhasil digunakan","Semoga beruntung dan selamat bersenang-senang"],merch:["CONGRATS! 🎁","Merchandise berhasil diklaim","Selamat menikmati merchandise Talaxeum"]},
-ACT={scan:"Kartu discan",scan_unknown:"QR tidak dikenal discan",scan_blocked:"Kartu diblokir discan",redeem_masuk:"Tiket Masuk digunakan",redeem_game:"Aktivitas Game digunakan",redeem_merch:"Merchandise digunakan",rejected_used:"Ditolak: sudah terpakai",rejected_blocked:"Ditolak: kartu diblokir",blocked:"Kartu diblokir",unblocked:"Blokir dibuka"};
+var KIND={masuk:"Tiket Masuk",game:"Aktivitas Game",merch:"Merchandise",spin:"Spin Wheel",scream:"Scream Challenge",typing:"Typing Test"},KS=["masuk","game","merch"],GS=["spin","scream","typing"],
+CONG={masuk:["SELAMAT DATANG! 🎉","Tiket Masuk berhasil digunakan","Selamat menikmati Playlist Rewind Bandung"],spin:["SPIN WHEEL! 🎡","Spin Wheel berhasil dimainkan","Semoga beruntung!"],scream:["SCREAM CHALLENGE! 📢","Scream Challenge berhasil dimainkan","Teriak sekencang-kencangnya!"],typing:["TYPING TEST! ⌨️","Typing Test berhasil dimainkan","Jari-jari cepat, mantap!"],merch:["MERCHANDISE COMPLETED! 🎁","Ketiga game sudah dimainkan","Merchandise otomatis tercatat"]},
+ACT={scan:"Kartu discan",scan_unknown:"QR tidak dikenal discan",scan_blocked:"Kartu diblokir discan",redeem_masuk:"Tiket Masuk digunakan",redeem_spin:"Spin Wheel dimainkan",redeem_scream:"Scream Challenge dimainkan",redeem_typing:"Typing Test dimainkan",redeem_game:"Aktivitas Game digunakan",redeem_merch:"Merchandise completed (otomatis)",rejected_used:"Ditolak: sudah terpakai",rejected_blocked:"Ditolak: kartu diblokir",blocked:"Kartu diblokir",unblocked:"Blokir dibuka"};
 function pad(n){return String(n).padStart(3,"0")}
 function alab(a){return a.action.indexOf("rejected")==0?ACT[a.action]+" ("+(KIND[a.detail]||a.detail)+")":ACT[a.action]||a.action}
 function adet(a){return a.action.indexOf("rejected")==0?"":(a.detail||"")}
@@ -112,7 +112,9 @@ function fm(t){return new Date(t).toLocaleString("id-ID",{timeZone:"Asia/Jakarta
 // ---- data: Supabase (login admin + realtime) ----
 var SB_URL="https://xnoxasktsmhhckyqblwf.supabase.co",SB_KEY="sb_publishable_55CH-NJcm0E4pE_dWVvElQ_-0qCXhX2";
 var sb=supabase.createClient(SB_URL,SB_KEY),st={use:{},blocked:{},act:[]},sel=null,booted=false,tm;
-function ucnt(code){return Object.keys(st.use[code]||{}).length}
+function gd(u){return GS.filter(function(g){return u[g]}).length}
+function prog(u){u=u||{};var g=gd(u);return{masuk:!!u.masuk,g:g,game:g==3,merch:!!u.merch||g==3}}
+function ucnt(code){var p=prog(st.use[code]);return(p.masuk?1:0)+(p.game?1:0)+(p.merch?1:0)}
 function stat(c){return st.blocked[c.code]?"bk":ucnt(c.code)>=3?"end":"on"}
 var SL={bk:"Diblokir",end:"Habis",on:"Aktif"};
 function setDb(t,bad){$("dbs").textContent=t;$("dbs").style.color=bad?"var(--bad)":"var(--ok)"}
@@ -135,15 +137,20 @@ var W=$("wall");cards.forEach(function(c){var e=document.createElement("div");e.
 function render(){
  var q=$("q").value.trim().toUpperCase(),h="",k={masuk:0,game:0,merch:0},bl=0,last={};
  st.act.forEach(function(a){if(a.code&&!last[a.code]&&a.action.indexOf("redeem")==0)last[a.code]=a.t});
- cards.forEach(function(c){var u=st.use[c.code]||{},n=ucnt(c.code),s=stat(c);KS.forEach(function(x){if(u[x])k[x]++});if(s=="bk")bl++;
+ cards.forEach(function(c){var u=st.use[c.code]||{},n=ucnt(c.code),s=stat(c);var p=prog(u);if(p.masuk)k.masuk++;if(p.game)k.game++;if(p.merch)k.merch++;if(s=="bk")bl++;
   c.el.className="u"+n+(s=="bk"?" bk":"")+(sel==c.code?" sl":"");c.el.style.setProperty("--z",(s=="bk"?4:n*16)+"px");
   if(q&&c.code.indexOf(q)<0&&String(c.n)!=q)return;
-  h+='<tr class="r'+(sel==c.code?" sel":"")+'" data-c="'+c.code+'"><td>'+c.n+'</td><td><code>'+c.code+'</code></td><td><span class="pill '+s+'">'+SL[s]+'</span></td>'+KS.map(function(x){return'<td>'+(u[x]?"✓":"–")+'</td>'}).join("")+'<td>'+(last[c.code]?fm(last[c.code]):"–")+'</td></tr>'});
+  h+='<tr class="r'+(sel==c.code?" sel":"")+'" data-c="'+c.code+'"><td>'+c.n+'</td><td><code>'+c.code+'</code></td><td><span class="pill '+s+'">'+SL[s]+'</span></td>'+('<td>'+(p.masuk?"✓":"–")+'</td><td>'+(p.game?"✓":(p.g?p.g+"/3":"–"))+'</td><td>'+(p.merch?"✓":"–")+'</td>')+'<td>'+(last[c.code]?fm(last[c.code]):"–")+'</td></tr>'});
  $("tb").innerHTML=h;$("s1").textContent=k.masuk+"/100";$("s2").textContent=k.game+"/100";$("s3").textContent=k.merch+"/100";$("s4").textContent=bl;
  $("rec").innerHTML=st.act.slice(0,15).map(function(a){return'<li><span><b>'+cn(a.code)+'</b> <code>'+(a.code||"?")+'</code><br><span class="sub">'+alab(a)+(a.by?" · oleh "+a.by:"")+'</span></span><span class="sub">'+fm(a.t)+'</span></li>'}).join("")||'<li class="sub">Belum ada aktivitas.</li>';
  detail()}
+function usesHtml(code,u){var P=prog(u);function by(k){return who(code,k)?" · "+who(code,k):""}
+ function bx(ok,t,d){return'<div class="us'+(ok?" d":"")+'"><b>'+(ok?"✓ ":"")+t+'</b><small>'+d+'</small></div>'}
+ return bx(P.masuk,KIND.masuk,P.masuk?fm(u.masuk)+by("masuk"):"belum dipakai")
+ +bx(P.game,KIND.game+" ("+P.g+"/3)",GS.map(function(g){return KIND[g]+": "+(u[g]?fm(u[g])+by(g):"belum")}).join("<br>"))
+ +bx(P.merch,KIND.merch,P.merch?"Completed"+(u.merch?" · "+fm(u.merch):""):"otomatis setelah 3 game")}
 function detail(){if(!sel)return;var c=cards.filter(function(x){return x.code==sel})[0],u=st.use[sel]||{},s=stat(c),n=ucnt(sel),h=st.act.filter(function(a){return a.code==sel});
- $("det").innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><b>NetCard #'+c.n+'</b><span class="pill '+s+'">'+SL[s]+'</span></div><div class="sub">Sisa '+(3-n)+' dari 3 kegunaan</div><div class="qr">'+qr(c.code)+'<code>'+c.code+'</code></div><div class="uses">'+KS.map(function(k){return'<div class="us'+(u[k]?" d":"")+'"><b>'+(u[k]?"✓ ":"")+KIND[k]+'</b><small>'+(u[k]?fm(u[k])+(who(sel,k)?" · "+who(sel,k):""):"belum dipakai")+'</small></div>'}).join("")+'</div><button id="blk">'+(s=="bk"?"Aktifkan kembali":"Blokir kartu")+'</button><div class="sub" style="margin-top:12px">Riwayat aktivitas ('+h.length+')</div><ul>'+(h.map(function(a){return'<li><span><b>'+alab(a)+'</b><br><span class="sub">'+(adet(a)?adet(a)+" · ":"")+(a.by?"oleh "+a.by:"sistem")+'</span></span><span class="sub">'+fm(a.t)+'</span></li>'}).join("")||'<li class="sub">Belum ada aktivitas.</li>')+'</ul>';
+ $("det").innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><b>NetCard #'+c.n+'</b><span class="pill '+s+'">'+SL[s]+'</span></div><div class="sub">Sisa '+(3-n)+' dari 3 kegunaan</div><div class="qr">'+qr(c.code)+'<code>'+c.code+'</code></div><div class="uses">'+usesHtml(sel,u)+'</div><button id="blk">'+(s=="bk"?"Aktifkan kembali":"Blokir kartu")+'</button><div class="sub" style="margin-top:12px">Riwayat aktivitas ('+h.length+')</div><ul>'+(h.map(function(a){return'<li><span><b>'+alab(a)+'</b><br><span class="sub">'+(adet(a)?adet(a)+" · ":"")+(a.by?"oleh "+a.by:"sistem")+'</span></span><span class="sub">'+fm(a.t)+'</span></li>'}).join("")||'<li class="sub">Belum ada aktivitas.</li>')+'</ul>';
  $("blk").onclick=function(){var v=!st.blocked[sel];sb.from("cards").update({blocked:v}).eq("code",sel).then(function(r){if(r.error)alert("Gagal mengubah status kartu");else load()})}}
 $("q").oninput=render;$("tb").onclick=function(e){var t=e.target.closest("tr");if(t){sel=t.dataset.c;render()}};
 W.onclick=function(e){if(e.target.dataset.c){sel=e.target.dataset.c;render();$("det").scrollIntoView({behavior:"smooth",block:"nearest"})}};
@@ -158,22 +165,33 @@ $("print").onclick=async function(){var btn=this,old=btn.textContent;btn.disable
 setInterval(function(){$("clk").textContent=new Date(Date.now()+25200000).toISOString().slice(11,19)},1000);
 // ---- scanner kamera: scan -> pilih kegunaan -> congrats ----
 var cam=null,busy=false,lastC="",lastT=0,pt,curCode="";
-function pop(ok,title,sub,note){busy=true;var p=$("pop");p.className="show "+(ok?"ok":"bad");
- p.innerHTML='<div class="pc"><div class="ic">'+(ok?"✓":"✕")+'</div><h2>'+title+'</h2><p>'+sub+'</p>'+(note?'<small>'+note+'</small>':'')+'<button id="pb">'+(ok?"LANJUT SCAN":"COBA LAGI")+'</button></div>';
- $("pb").onclick=closePop;clearTimeout(pt);pt=setTimeout(closePop,5000);if(navigator.vibrate)navigator.vibrate(ok?[60]:[120,60,120])}
+function pop(ok,title,sub,note,cb,lab){busy=true;var p=$("pop");p.className="show "+(ok?"ok":"bad");
+ p.innerHTML='<div class="pc"><div class="ic">'+(ok?"✓":"✕")+'</div><h2>'+title+'</h2><p>'+sub+'</p>'+(note?'<small>'+note+'</small>':'')+'<button id="pb">'+(lab||(ok?"LANJUT SCAN":"COBA LAGI"))+'</button></div>';
+ $("pb").onclick=cb?function(){clearTimeout(pt);cb()}:closePop;clearTimeout(pt);pt=setTimeout(closePop,cb?20000:5000);if(navigator.vibrate)navigator.vibrate(ok?[60]:[120,60,120])}
 function closePop(){clearTimeout(pt);$("pop").className="";busy=false;lastT=Date.now()}
-function sheet(d){busy=true;var p=$("pop"),rem=3-Object.keys(d.used).length,h='<div class="pc"><div class="ic">✓</div><h2>NetCard #'+pad(d.n)+'</h2><p>Sisa '+rem+' dari 3 kegunaan</p>';
- KS.forEach(function(k){var u=d.used[k];h+='<button class="kb" data-k="'+k+'"'+(u?" disabled":"")+'>'+(u?"✓ ":"")+KIND[k]+(u?'<small>sudah dipakai '+fm(Date.parse(u))+'</small>':'')+'</button>'});
+var curD=null;
+function sheet(d){curD=d;busy=true;var p=$("pop"),u=d.used,P=prog(u),rem=3-((P.masuk?1:0)+(P.game?1:0)+(P.merch?1:0)),h='<div class="pc"><div class="ic">✓</div><h2>NetCard #'+pad(d.n)+'</h2><p>Sisa '+rem+' dari 3 kegunaan</p>';
+ h+='<button class="kb" data-k="masuk"'+(P.masuk?" disabled":"")+'>'+(P.masuk?"✓ ":"")+KIND.masuk+(P.masuk?'<small>sudah dipakai '+fm(Date.parse(u.masuk))+'</small>':'')+'</button>';
+ h+='<button class="kb" data-k="game"'+(P.game?" disabled":"")+'>'+(P.game?"✓ ":"")+KIND.game+'<small>'+(P.game?"semua game selesai":P.g+" dari 3 game dimainkan")+'</small></button>';
+ h+='<button disabled>'+(P.merch?"✓ ":"")+KIND.merch+'<small>'+(P.merch?"COMPLETED":"otomatis setelah 3 game selesai")+'</small></button>';
  p.className="show ok";p.innerHTML=h+'<button class="gh" id="pb">'+(rem?"BATAL":"TUTUP")+'</button></div>';$("pb").onclick=closePop;
- Array.prototype.forEach.call(p.querySelectorAll(".kb"),function(b){b.onclick=function(){redeem(b.dataset.k)}});
+ Array.prototype.forEach.call(p.querySelectorAll(".kb"),function(b){b.onclick=function(){b.dataset.k=="game"?gameMenu():redeem("masuk")}});
  clearTimeout(pt);pt=setTimeout(closePop,45000);if(navigator.vibrate)navigator.vibrate(60)}
+function gameMenu(){var d=curD,u=d.used,P=prog(u),p=$("pop"),h='<div class="pc"><div class="ic">🎮</div><h2>PILIH GAME</h2><p>NetCard #'+pad(d.n)+' · '+P.g+' dari 3 selesai</p>';
+ GS.forEach(function(g){h+='<button class="kb" data-k="'+g+'"'+(u[g]?" disabled":"")+'>'+(u[g]?"✓ ":"")+KIND[g]+(u[g]?'<small>sudah dimainkan '+fm(Date.parse(u[g]))+'</small>':'')+'</button>'});
+ p.className="show ok";p.innerHTML=h+'<button class="gh" id="pb">KEMBALI</button></div>';$("pb").onclick=function(){sheet(d)};
+ Array.prototype.forEach.call(p.querySelectorAll(".kb"),function(b){b.onclick=function(){redeem(b.dataset.k)}});
+ clearTimeout(pt);pt=setTimeout(closePop,45000)}
 async function redeem(k){Array.prototype.forEach.call($("pop").querySelectorAll("button"),function(b){b.disabled=true});clearTimeout(pt);
- var r=await sb.rpc("redeem_card",{p_code:curCode,p_kind:k}),d=r.data;
+ var r=await sb.rpc("redeem_card",{p_code:curCode,p_kind:k}),d=r.data,isG=GS.indexOf(k)>=0;
  if(r.error||!d)return pop(0,"GAGAL TERHUBUNG","Cek koneksi internet lalu scan ulang");
- if(d.ok)return pop(1,CONG[k][0],CONG[k][1],CONG[k][2]+" · sisa "+d.remaining+" dari 3");
- if(d.reason=="used")return pop(0,"SUDAH DIPAKAI",KIND[k]+" untuk NetCard #"+pad(d.n)+" sudah digunakan");
+ if(d.ok){curD.used[k]=new Date().toISOString();var P=prog(curD.used);
+  if(!isG)return pop(1,CONG[k][0],CONG[k][1],CONG[k][2]);
+  if(P.game)return pop(1,CONG[k][0],CONG[k][1],"🎁 3 game selesai → MERCHANDISE COMPLETED!");
+  return pop(1,CONG[k][0],CONG[k][1],"Game ke-"+P.g+" dari 3",gameMenu,"PILIH GAME LAIN")}
+ if(d.reason=="used")return pop(0,"SUDAH DIPAKAI",KIND[k]+" untuk NetCard #"+pad(d.n)+" sudah dimainkan/digunakan");
  if(d.reason=="blocked")return pop(0,"KARTU DIBLOKIR","NetCard #"+pad(d.n),"Hubungi tim Talaxeum");
- pop(0,"GAGAL","Kegunaan tidak valid")}
+ pop(0,"GAGAL","Kegunaan tidak valid. Pastikan SQL terbaru sudah dijalankan")}
 async function onScan(v){if(busy)return;v=String(v).trim().toUpperCase();if(v==lastC&&Date.now()-lastT<4000)return;lastC=v;lastT=Date.now();busy=true;curCode=v;
  var r=await sb.rpc("lookup_card",{p_code:v}),d=r.data;
  if(r.error||!d)return pop(0,"GAGAL TERHUBUNG","Cek koneksi internet lalu scan ulang");
