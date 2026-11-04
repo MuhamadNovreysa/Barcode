@@ -6,6 +6,7 @@
 <title>Talaxeum NetCard Magical Series</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@500;600&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <style>
 :root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#05060f;--card:rgba(14,18,40,.72);--bd:rgba(110,140,255,.22);--tx:#e8ecff;--mu:#8a93c4;--cy:#00e5ff;--mg:#ff3df2;--ok:#2dffa0;--bad:#ff5470;--f:"Rajdhani","Segoe UI",system-ui,sans-serif;--h:"Orbitron","Segoe UI",system-ui,sans-serif}
@@ -56,16 +57,13 @@ ul{list-style:none;margin:8px 0 0;padding:0}li{padding:7px 0;border-bottom:1px s
 #login{position:fixed;inset:0;display:none;place-items:center;background:var(--bg);z-index:30}#login.on{display:grid}
 .uses{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.us{border:1px solid var(--bd);border-radius:10px;padding:8px;font-size:14px}.us small{display:block;color:var(--mu);font-size:12px}.us.d{border-color:var(--ok);background:rgba(45,255,160,.08)}
 .pc button:disabled{background:#232842;color:var(--mu);cursor:default;box-shadow:none}.pc button small{color:inherit;margin:2px 0 0;font-size:12px;font-weight:500}.pc button.gh{background:transparent;color:var(--tx);border:1px solid var(--bd)}
-#sheet{display:none}
-@media print{html,body{background:#fff}.app,#scanner,#pop{display:none!important}#sheet{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.c{border:1px solid #000;border-radius:8px;padding:8px;text-align:center;break-inside:avoid;color:#000;background:#fff;font:12px system-ui}.c img{height:20px}.c svg{width:130px;height:130px}.c b{display:block;margin:4px 0}}
 </style>
 </head>
 <body>
 <div class="app">
  <header class="top">
   <div class="brand"><img class="logo" alt="Talaxeum"><div><h1>Talaxeum <span>NetCard Magical Series</span></h1><div class="sub">Playlist Rewind Bandung · <span id="clk"></span> WIB · <span id="dbs">menghubungkan…</span></div></div></div>
-  <div class="act"><button class="p" id="nv">Buka Scanner</button><button id="print">Cetak 100 kartu</button><button id="lo">Keluar</button></div>
+  <div class="act"><button class="p" id="nv">Buka Scanner</button><button id="print">Unduh 100 PNG (ZIP)</button><button id="lo">Keluar</button></div>
  </header>
  <section class="stats">
   <div class="box"><b>100</b><small>Total NetCard</small></div>
@@ -89,7 +87,6 @@ ul{list-style:none;margin:8px 0 0;padding:0}li{padding:7px 0;border-bottom:1px s
  <div id="start"><button class="p" id="sb">Aktifkan kamera</button></div></div>
 <div id="pop"></div>
 <div id="login"><div class="box" style="width:min(92%,380px);text-align:center"><img class="logo" alt="Talaxeum" style="margin:0 auto 14px"><h1>NetCard Admin</h1><div class="sub" style="margin:6px 0 12px">Khusus tim Talaxeum</div><input id="em" type="email" placeholder="Email admin" autocomplete="username"><input id="pw" type="password" placeholder="Password" autocomplete="current-password"><div id="le" style="color:var(--bad);min-height:22px"></div><button class="p" id="lb" style="width:100%">Masuk</button></div></div>
-<div id="sheet"></div>
 <script>
 var $=function(i){return document.getElementById(i)};
 // ---- LOGO: tempel data URI logo kamu di sini (cukup 1x). Contoh: "data:image/png;base64,iVBOR..." ----
@@ -151,7 +148,13 @@ function detail(){if(!sel)return;var c=cards.filter(function(x){return x.code==s
 $("q").oninput=render;$("tb").onclick=function(e){var t=e.target.closest("tr");if(t){sel=t.dataset.c;render()}};
 W.onclick=function(e){if(e.target.dataset.c){sel=e.target.dataset.c;render();$("det").scrollIntoView({behavior:"smooth",block:"nearest"})}};
 $("stage").onmousemove=function(e){var b=this.getBoundingClientRect(),x=(e.clientX-b.left)/b.width-.5,y=(e.clientY-b.top)/b.height-.5;W.style.setProperty("--rx",(55-y*22)+"deg");W.style.setProperty("--rz",(-28+x*30)+"deg")};
-$("print").onclick=function(){var lg=LOGO?'<img src="'+LOGO+'">':"";$("sheet").innerHTML=cards.map(function(c){return'<div class="c">'+lg+'<b>NetCard Magical Series</b>'+qr(c.code)+'<code>'+c.code+'</code><div>1 kartu · 3 kegunaan</div><div>Tiket Masuk · Game · Merchandise</div></div>'}).join("");window.print()};
+function qrPng(t){return new Promise(function(ok){var q=qrcode(0,"M");q.addData(t);q.make();var n=q.getModuleCount(),m=4,px=16,S=(n+2*m)*px,cv=document.createElement("canvas"),g,a,b;cv.width=cv.height=S;g=cv.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,S,S);g.fillStyle="#000";
+ for(a=0;a<n;a++)for(b=0;b<n;b++)if(q.isDark(a,b))g.fillRect((b+m)*px,(a+m)*px,px,px);cv.toBlob(ok,"image/png")})}
+$("print").onclick=async function(){var btn=this,old=btn.textContent;btn.disabled=true;
+ try{var z=new JSZip(),i;for(i=0;i<cards.length;i++){btn.textContent="Membuat "+(i+1)+"/100…";z.file(cards[i].code+".png",await qrPng(cards[i].code));if(i%10==9)await new Promise(function(f){setTimeout(f,0)})}
+  btn.textContent="Mengemas ZIP…";var blob=await z.generateAsync({type:"blob",compression:"STORE"}),u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download="NetCard-QR-100.zip";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},10000)}
+ catch(e){alert("Gagal membuat ZIP")}
+ btn.disabled=false;btn.textContent=old};
 setInterval(function(){$("clk").textContent=new Date(Date.now()+25200000).toISOString().slice(11,19)},1000);
 // ---- scanner kamera: scan -> pilih kegunaan -> congrats ----
 var cam=null,busy=false,lastC="",lastT=0,pt,curCode="";
