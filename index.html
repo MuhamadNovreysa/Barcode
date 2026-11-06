@@ -57,13 +57,14 @@ ul{list-style:none;margin:8px 0 0;padding:0}li{padding:7px 0;border-bottom:1px s
 #login{position:fixed;inset:0;display:none;place-items:center;background:var(--bg);z-index:30}#login.on{display:grid}
 .uses{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.us{border:1px solid var(--bd);border-radius:10px;padding:8px;font-size:14px}.us small{display:block;color:var(--mu);font-size:12px}.us.d{border-color:var(--ok);background:rgba(45,255,160,.08)}
 .pc button:disabled{background:#232842;color:var(--mu);cursor:default;box-shadow:none}.pc button small{color:inherit;margin:2px 0 0;font-size:12px;font-weight:500}.pc button.gh{background:transparent;color:var(--tx);border:1px solid var(--bd)}
+#rs{border-color:var(--bad);color:var(--bad)}#rs:hover{background:var(--bad);color:#fff;box-shadow:0 0 14px var(--bad)}
 </style>
 </head>
 <body>
 <div class="app">
  <header class="top">
   <div class="brand"><img class="logo" alt="Talaxeum"><div><h1>Talaxeum <span>NetCard Magical Series</span></h1><div class="sub">Playlist Rewind Bandung · <span id="clk"></span> WIB · <span id="dbs">menghubungkan…</span></div></div></div>
-  <div class="act"><button class="p" id="nv">Buka Scanner</button><button id="print">Unduh 100 PNG (ZIP)</button><button id="lo">Keluar</button></div>
+  <div class="act"><button class="p" id="nv">Buka Scanner</button><button id="print">Unduh 100 PNG (ZIP)</button><button id="rs" style="display:none">Reset data</button><button id="lo">Keluar</button></div>
  </header>
  <section class="stats">
   <div class="box"><b>100</b><small>Total NetCard</small></div>
@@ -102,7 +103,7 @@ var AL="ABCDEFGHJKMNPQRSTUVWXYZ23456789",r=rng(20261104),seen={},cards=[];
 while(cards.length<100){var s="";for(var j=0;j<6;j++)s+=AL[Math.floor(r()*AL.length)];if(seen[s])continue;seen[s]=1;var n=cards.length+1;cards.push({n:n,code:"TLX-"+String(n).padStart(3,"0")+"-"+s})}
 var KIND={masuk:"Tiket Masuk",game:"Aktivitas Game",merch:"Merchandise",spin:"Spin Wheel",scream:"Scream Challenge",typing:"Typing Test"},KS=["masuk","game","merch"],GS=["spin","scream","typing"],
 CONG={masuk:["SELAMAT DATANG! 🎉","Tiket Masuk berhasil digunakan","Selamat menikmati Playlist Rewind Bandung"],spin:["SPIN WHEEL! 🎡","Spin Wheel berhasil dimainkan","Semoga beruntung!"],scream:["SCREAM CHALLENGE! 📢","Scream Challenge berhasil dimainkan","Teriak sekencang-kencangnya!"],typing:["TYPING TEST! ⌨️","Typing Test berhasil dimainkan","Jari-jari cepat, mantap!"],merch:["MERCHANDISE COMPLETED! 🎁","Ketiga game sudah dimainkan","Merchandise otomatis tercatat"]},
-ACT={scan:"Kartu discan",scan_unknown:"QR tidak dikenal discan",scan_blocked:"Kartu diblokir discan",redeem_masuk:"Tiket Masuk digunakan",redeem_spin:"Spin Wheel dimainkan",redeem_scream:"Scream Challenge dimainkan",redeem_typing:"Typing Test dimainkan",redeem_game:"Aktivitas Game digunakan",redeem_merch:"Merchandise completed (otomatis)",rejected_used:"Ditolak: sudah terpakai",rejected_blocked:"Ditolak: kartu diblokir",blocked:"Kartu diblokir",unblocked:"Blokir dibuka"};
+ACT={reset:"Semua data direset",scan:"Kartu discan",scan_unknown:"QR tidak dikenal discan",scan_blocked:"Kartu diblokir discan",redeem_masuk:"Tiket Masuk digunakan",redeem_spin:"Spin Wheel dimainkan",redeem_scream:"Scream Challenge dimainkan",redeem_typing:"Typing Test dimainkan",redeem_game:"Aktivitas Game digunakan",redeem_merch:"Merchandise completed (otomatis)",rejected_used:"Ditolak: sudah terpakai",rejected_blocked:"Ditolak: kartu diblokir",blocked:"Kartu diblokir",unblocked:"Blokir dibuka"};
 function pad(n){return String(n).padStart(3,"0")}
 function alab(a){return a.action.indexOf("rejected")==0?ACT[a.action]+" ("+(KIND[a.detail]||a.detail)+")":ACT[a.action]||a.action}
 function adet(a){return a.action.indexOf("rejected")==0?"":(a.detail||"")}
@@ -123,7 +124,7 @@ async function load(){
  if(a.error||b.error||c.error){setDb("✕ database error",1);return}
  st.use={};a.data.forEach(function(x){(st.use[x.code]=st.use[x.code]||{})[x.kind]=Date.parse(x.redeemed_at)});
  st.blocked={};b.data.forEach(function(x){if(x.blocked)st.blocked[x.code]=1});
- st.act=c.data.map(function(x){return{code:x.code,action:x.action,detail:x.detail,by:x.admin_email,t:Date.parse(x.created_at)}});render()}
+ st.act=c.data.map(function(x){return{code:x.code,action:x.action,detail:x.detail,by:x.admin_email,t:Date.parse(x.created_at)}});render();sb.from("app_settings").select("value").eq("key","allow_reset").maybeSingle().then(function(r){$("rs").style.display=r.data&&r.data.value?"":"none"})}
 function sched(){clearTimeout(tm);tm=setTimeout(load,300)}
 function boot(s){if(!s){booted=false;$("login").className="on";stopCam();return}
  $("login").className="";if(booted)return;booted=true;setDb("● Supabase realtime");load();
@@ -132,6 +133,12 @@ sb.auth.getSession().then(function(r){boot(r.data.session)});
 sb.auth.onAuthStateChange(function(e){if(e=="SIGNED_OUT")boot(null)});
 $("lb").onclick=async function(){$("le").textContent="";var r=await sb.auth.signInWithPassword({email:$("em").value.trim(),password:$("pw").value});if(r.error){$("le").textContent="Email atau password salah";return}boot(r.data.session)};
 $("pw").onkeydown=function(e){if(e.key=="Enter")$("lb").click()};$("lo").onclick=function(){sb.auth.signOut()};
+$("rs").onclick=async function(){
+ if(prompt("RESET DATA UJI COBA\n\nSemua pemakaian (Tiket Masuk, Game, Merchandise), riwayat aktivitas, dan status blokir akan dihapus. QR 100 kartu TIDAK berubah.\n\nKetik RESET untuk melanjutkan:")!=="RESET")return;
+ var b=this;b.disabled=true;var r=await sb.rpc("reset_all_data");b.disabled=false;
+ if(r.error||!r.data||!r.data.ok){alert(r.data&&r.data.reason=="disabled"?"Reset sudah dinonaktifkan oleh admin database.":"Gagal reset. Cek koneksi lalu coba lagi.");return}
+ sel=null;$("det").innerHTML='<div class="sub">Pilih kartu untuk melihat QR dan riwayat pemakaian.</div>';load();
+ alert("Berhasil direset: "+r.data.redemptions+" pemakaian dan "+r.data.activity+" log dihapus. QR tetap sama.")};
 // ---- dashboard ----
 var W=$("wall");cards.forEach(function(c){var e=document.createElement("div");e.dataset.c=c.code;e.textContent=c.n;c.el=e;W.appendChild(e)});
 function render(){
